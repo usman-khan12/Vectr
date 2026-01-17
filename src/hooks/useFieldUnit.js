@@ -7,11 +7,18 @@ export function useFieldUnit() {
   const [connected, setConnected] = useState(fieldUnit.connected);
   const [status, setStatus] = useState(null);
   const [lastVoiceNote, setLastVoiceNote] = useState(null);
+  const [connecting, setConnecting] = useState(false);
 
   const connect = useCallback(() => {
-    fieldUnit.connect().catch((error) => {
-      console.error("useFieldUnit connect error", error);
-    });
+    setConnecting(true);
+    fieldUnit
+      .connect()
+      .catch((error) => {
+        console.error("useFieldUnit connect error", error);
+      })
+      .finally(() => {
+        setConnecting(false);
+      });
   }, []);
 
   const disconnect = useCallback(() => {
@@ -78,10 +85,12 @@ export function useFieldUnit() {
 
     const handleConnected = () => {
       setConnected(true);
+      setConnecting(false);
     };
 
     const handleDisconnected = () => {
       setConnected(false);
+      setConnecting(true);
     };
 
     fieldUnit.on("status", handleStatus);
@@ -100,6 +109,7 @@ export function useFieldUnit() {
   return {
     connected,
     status,
+    connecting,
     connect,
     disconnect,
     dispatch,

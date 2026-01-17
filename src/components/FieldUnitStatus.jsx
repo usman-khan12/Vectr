@@ -1,7 +1,7 @@
 import { useFieldUnit } from "../hooks/useFieldUnit.js";
 
 export default function FieldUnitStatus() {
-  const { connected, status } = useFieldUnit();
+  const { connected, status, connecting } = useFieldUnit();
 
   const voiceReady = status ? status.voice_ready : false;
   const displayReady = status ? status.display_ready : false;
@@ -11,13 +11,31 @@ export default function FieldUnitStatus() {
       <div
         className={
           "flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border " +
-          (connected
+          (connecting
+            ? "bg-yellow-900/40 text-yellow-300 border-yellow-600 animate-pulse"
+            : connected
             ? "bg-green-900/30 text-green-400 border-green-700"
             : "bg-red-900/30 text-red-400 border-red-700 animate-pulse")
         }
       >
-        <span className={connected ? "text-green-500" : "text-red-500"}>●</span>
-        <span>{connected ? "Field Unit Online" : "Field Unit Offline"}</span>
+        <span
+          className={
+            connecting
+              ? "text-yellow-400"
+              : connected
+              ? "text-green-500"
+              : "text-red-500"
+          }
+        >
+          ●
+        </span>
+        <span>
+          {connecting
+            ? "Connecting..."
+            : connected
+            ? "Field Unit Online"
+            : "Field Unit Offline"}
+        </span>
       </div>
       {connected && status && (
         <div className="flex items-center gap-3 text-xs text-gray-300">

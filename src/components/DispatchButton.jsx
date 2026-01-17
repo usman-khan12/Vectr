@@ -26,7 +26,7 @@ export default function DispatchButton(props) {
         onClick={handleClick}
         disabled={isDisabled}
         className={
-          "w-full rounded-md px-4 py-4 text-center text-sm font-medium transition-colors " +
+          "w-full rounded-md px-4 py-4 text-center text-sm font-medium transition-colors duration-150 min-h-[44px] " +
           (isDisabled
             ? "bg-gray-700 text-gray-500 cursor-not-allowed"
             : "bg-blue-600 text-white hover:bg-blue-700")
