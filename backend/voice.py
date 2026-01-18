@@ -183,7 +183,22 @@ async def create_incident(payload: CreateIncidentRequest):
     except Exception as e:
         positioning_guidance = f"Positioning guidance unavailable: {str(e)}"
 
-    # 2. Create LiveKit room with incident metadata
+    # 2. Compress scene data for room metadata using Token Company
+    try:
+        compressed_scene = compress_text_with_token_company(
+            scene_analysis, aggressiveness=0.3
+        )
+    except Exception:
+        compressed_scene = scene_analysis
+
+    try:
+        compressed_positioning = compress_text_with_token_company(
+            positioning_guidance, aggressiveness=0.3
+        )
+    except Exception:
+        compressed_positioning = positioning_guidance
+
+    # 3. Create LiveKit room with incident metadata
     lk = get_livekit_api()
 
     room_metadata = json.dumps(
@@ -193,9 +208,9 @@ async def create_incident(payload: CreateIncidentRequest):
             "lat": payload.lat,
             "lng": payload.lng,
             "caller_notes": payload.caller_notes,
-            # Truncate for metadata limits
-            "scene_analysis": scene_analysis[:1000],
-            "positioning_guidance": positioning_guidance[:1000],
+            # Compressed for better LLM context packing
+            "scene_analysis": compressed_scene[:1000],
+            "positioning_guidance": compressed_positioning[:1000],
         }
     )
 
@@ -211,7 +226,7 @@ async def create_incident(payload: CreateIncidentRequest):
         # Room might already exist
         logger.warning(f"Room creation note: {e}")
 
-    # 3. Generate access tokens
+    # 4. Generate access tokens
     token_dispatcher = livekit_api.AccessToken(
         api_key=os.getenv("LIVEKIT_API_KEY"),
         api_secret=os.getenv("LIVEKIT_API_SECRET"),

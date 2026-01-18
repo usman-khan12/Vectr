@@ -4,4 +4,4 @@ __pycache__
 node_modules
 .venv
 __pycache__/voice.cpython-313.pyc
-
+.vectr-dev-pids
