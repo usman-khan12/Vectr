@@ -11,7 +11,8 @@ export function MapPanel({
   recommendedHeading = null,
   autoNavigate = false, // When true, cycles through POIs
 }) {
-  const containerRef = useRef(null);
+  const satelliteContainerRef = useRef(null);
+  const streetContainerRef = useRef(null);
   const mapRef = useRef(null);
   const panoramaRef = useRef(null);
   const [currentPOIIndex, setCurrentPOIIndex] = useState(0);
@@ -19,12 +20,13 @@ export function MapPanel({
 
   // Initialize map/panorama
   useEffect(() => {
-    if (!lat || !lng || !containerRef.current) return;
+    if (!lat || !lng) return;
     if (!window.google) return;
 
     if (mode === "satellite") {
+      if (!satelliteContainerRef.current) return;
       if (!mapRef.current) {
-        mapRef.current = new google.maps.Map(containerRef.current, {
+        mapRef.current = new google.maps.Map(satelliteContainerRef.current, {
           center: { lat, lng },
           zoom: 19,
           mapTypeId: "satellite",
@@ -37,9 +39,10 @@ export function MapPanel({
       new google.maps.Marker({ position: { lat, lng }, map: mapRef.current });
     } else {
       // Street View
+      if (!streetContainerRef.current) return;
       if (!panoramaRef.current) {
         panoramaRef.current = new google.maps.StreetViewPanorama(
-          containerRef.current,
+          streetContainerRef.current,
           {
             position: { lat, lng },
             pov: {
@@ -142,7 +145,14 @@ export function MapPanel({
 
   return (
     <div className={`relative ${className}`}>
-      <div ref={containerRef} className="h-full w-full" />
+      <div
+        ref={satelliteContainerRef}
+        className={`h-full w-full ${mode === "satellite" ? "block" : "hidden"}`}
+      />
+      <div
+        ref={streetContainerRef}
+        className={`h-full w-full ${mode === "street" ? "block" : "hidden"}`}
+      />
 
       {mode === "street" &&
         (pois.length > 0 || recommendedHeading !== null) && (

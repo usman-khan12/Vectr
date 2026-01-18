@@ -3,6 +3,17 @@ export default {
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
     extend: {
+      colors: {
+        ems: {
+          red: "#ed1b24",
+          blue: {
+            DEFAULT: "#23408e",
+            light: "#385399",
+          },
+          gray: "#cccccc",
+          white: "#ffffff",
+        },
+      },
       animation: {
         "fade-in": "fadeIn 0.5s ease-out",
       },

@@ -42,23 +42,23 @@ export function EmergencyLayout({
     typeof location.lng === "number";
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-gray-950 text-white overflow-hidden font-sans selection:bg-blue-500/30">
+    <div className="flex flex-col h-screen w-screen bg-ems-white text-slate-900 overflow-hidden font-sans selection:bg-ems-blue/30">
       {/* Header */}
-      <header className="flex-none h-14 bg-gray-900 border-b border-gray-800 flex items-center px-4 gap-4 z-50 shadow-md">
+      <header className="flex-none bg-ems-blue border-b border-ems-blue-light flex items-center px-4 py-2 gap-4 z-50 shadow-md">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-lg shadow-blue-900/50 shadow-lg">
+          <div className="w-8 h-8 bg-ems-red rounded flex items-center justify-center font-bold text-lg shadow-black/20 shadow-lg text-white">
             V
           </div>
-          <span className="font-bold tracking-wider text-gray-100 hidden md:block">
+          <span className="font-bold tracking-wider text-white hidden md:block">
             VECTR{" "}
-            <span className="text-blue-500 text-xs font-normal">DISPATCH</span>
+            <span className="text-blue-200 text-xs font-normal">DISPATCH</span>
           </span>
         </div>
 
         <div className="flex-1 max-w-2xl mx-auto">
           <AddressBar
             onAddressSelect={setLocation}
-            className="w-full bg-gray-800 border-gray-700 text-sm focus:ring-blue-500"
+            className="w-full bg-ems-blue-light border-blue-400 text-white placeholder-blue-200 text-sm focus:ring-ems-white"
           />
         </div>
 
@@ -66,19 +66,19 @@ export function EmergencyLayout({
           <button
             onClick={handleOpenGoogleMaps}
             disabled={!hasLocation}
-            className="hidden md:flex px-3 py-1.5 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-xs rounded border border-gray-700 transition-colors"
+            className="hidden md:flex px-3 py-1.5 bg-ems-blue-light hover:bg-blue-600 disabled:opacity-50 text-xs rounded border border-blue-400 text-white transition-colors"
           >
             Maps
           </button>
-          <div className="w-px h-6 bg-gray-800 mx-2" />
+          <div className="w-px h-6 bg-blue-400 mx-2" />
           <div className="flex flex-col items-end">
-            <span className="text-xs font-bold text-gray-300">
+            <span className="text-xs font-bold text-white">
               {new Date().toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
               })}
             </span>
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-blue-200">
               {new Date().toLocaleDateString()}
             </span>
           </div>
@@ -88,7 +88,7 @@ export function EmergencyLayout({
       {/* Main Grid */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel: Ambulance & Positioning */}
-        <div className="w-80 flex-none z-10 hidden md:block shadow-xl shadow-black/50">
+        <div className="w-80 flex-none z-10 hidden md:block shadow-xl shadow-black/20">
           <AmbulancePanel positioningGuidance={positioningGuidance} />
         </div>
 
@@ -104,7 +104,7 @@ export function EmergencyLayout({
         </div>
 
         {/* Right Panel: Controls */}
-        <div className="w-64 flex-none z-10 hidden lg:block shadow-xl shadow-black/50">
+        <div className="w-64 flex-none z-10 hidden lg:block shadow-xl shadow-black/20">
           <RightPanel
             viewMode={viewMode}
             setViewMode={setViewMode}
@@ -118,8 +118,7 @@ export function EmergencyLayout({
         </div>
       </div>
 
-      {/* Bottom Panel: Transcription & Notes */}
-      <div className="h-64 flex-none z-20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)]">
+      <div className="flex-none z-20 h-[45vh] min-h-[16rem] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] overflow-hidden">
         {roomToken ? (
           <LiveKitRoom
             serverUrl={liveKitUrl}
