@@ -56,6 +56,9 @@ function BaseTranscriptionPanel({
   audioTrack,
 }) {
   const [noteInput, setNoteInput] = useState("");
+  const [unionLoading, setUnionLoading] = useState(false);
+  const [unionError, setUnionError] = useState(null);
+  const [unionSuccess, setUnionSuccess] = useState(null);
 
   const handleNoteKeyDown = (event) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -67,8 +70,59 @@ function BaseTranscriptionPanel({
     }
   };
 
+  const handleUnionNotes = async () => {
+    if (!notes || !onAddNote) {
+      return;
+    }
+
+    setUnionLoading(true);
+    setUnionError(null);
+    setUnionSuccess(null);
+
+    try {
+      const systemNotes = notes
+        .filter((note) => !note.author || note.author === "SYSTEM")
+        .sort((a, b) => {
+          const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+          const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+          return aTime - bTime;
+        });
+
+      if (systemNotes.length === 0) {
+        setUnionError("No system notes available to union.");
+        return;
+      }
+
+      const unionContentHeader = "Union Summary of System Notes\n\n";
+      const unionContentBody = systemNotes
+        .map((note, index) => {
+          const timeLabel = note.timestamp
+            ? new Date(note.timestamp).toLocaleTimeString()
+            : "";
+          const prefix = `${index + 1}. ${timeLabel ? `[${timeLabel}] ` : ""}`;
+          const content = note.content || "";
+          return `${prefix}${content}`;
+        })
+        .join("\n\n");
+
+      const unionContent = unionContentHeader + unionContentBody;
+
+      const result = onAddNote(unionContent);
+      if (result && typeof result.then === "function") {
+        await result;
+      }
+
+      setUnionSuccess("Union summary note generated.");
+    } catch (error) {
+      console.error("Union notes error", error);
+      setUnionError("Unable to generate union summary.");
+    } finally {
+      setUnionLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 h-full gap-4 bg-gray-950 p-4 border-t border-gray-800 overflow-hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-3 h-full gap-4 bg-gray-950 p-4 border-t border-gray-800 overflow-y-auto">
       {/* Left: Live Transcription / Agent */}
       <div className="lg:col-span-1 flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -114,13 +168,42 @@ function BaseTranscriptionPanel({
         </div>
       </div>
 
-      {/* Right: Notes Interface */}
       <div className="lg:col-span-2 flex flex-col h-full">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-base font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-            <span>📝</span> Operational Notes
+            <span>📝</span> Notes
           </h3>
+          <button
+            type="button"
+            onClick={handleUnionNotes}
+            disabled={unionLoading || !notes || notes.length === 0}
+            className={
+              "rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-150 " +
+              (unionLoading || !notes || notes.length === 0
+                ? "cursor-not-allowed bg-gray-700 text-gray-500"
+                : "bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800")
+            }
+            aria-busy={unionLoading}
+          >
+            {unionLoading ? "Unioning..." : "Union Notes"}
+          </button>
         </div>
+
+        {unionError && (
+          <div className="mb-2 text-xs text-red-400" role="alert">
+            {unionError}
+          </div>
+        )}
+
+        {unionSuccess && (
+          <div
+            className="mb-2 text-xs text-green-400"
+            role="status"
+            aria-live="polite"
+          >
+            {unionSuccess}
+          </div>
+        )}
 
         <div className="mb-3">
           <textarea

@@ -29,12 +29,44 @@ export function EmergencyLayout({
   handleCreateIncident,
   incidentLoading,
 
-  // Notes
   notes,
   loadingNotes,
   onAddNote,
 }) {
-  const [viewMode, setViewMode] = useState("satellite"); // 'satellite' | 'street'
+  const [viewMode, setViewMode] = useState("satellite");
+  const [transcriptionPanelMode, setTranscriptionPanelMode] =
+    useState("default");
+
+  const cycleTranscriptionPanelMode = () => {
+    setTranscriptionPanelMode((prev) => {
+      if (prev === "default") return "maximized";
+      if (prev === "maximized") return "minimized";
+      return "default";
+    });
+  };
+
+  const handleToggleKeyDown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      cycleTranscriptionPanelMode();
+    }
+  };
+
+  const mainSectionClassName =
+    "flex min-h-0 overflow-hidden transition-all duration-300 " +
+    (transcriptionPanelMode === "maximized"
+      ? "flex-[0.25]"
+      : transcriptionPanelMode === "minimized"
+        ? "flex-[2.9]"
+        : "flex-[2]");
+
+  const transcriptionSectionClassName =
+    "relative z-20 min-h-0 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] overflow-y-auto transition-all duration-300 " +
+    (transcriptionPanelMode === "maximized"
+      ? "flex-[2.75]"
+      : transcriptionPanelMode === "minimized"
+        ? "flex-[0.1]"
+        : "flex-[1]");
 
   const hasLocation =
     !!location &&
@@ -85,8 +117,7 @@ export function EmergencyLayout({
         </div>
       </header>
 
-      {/* Main Grid */}
-      <div className="flex-[2] flex min-h-0 overflow-hidden">
+      <div className={mainSectionClassName}>
         {/* Left Panel: Ambulance & Positioning */}
         <div className="w-80 flex-none z-10 hidden md:block shadow-xl shadow-black/20">
           <AmbulancePanel positioningGuidance={positioningGuidance} />
@@ -118,32 +149,60 @@ export function EmergencyLayout({
         </div>
       </div>
 
-      <div className="flex-[1] z-20 min-h-0 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] overflow-hidden">
-        {roomToken ? (
-          <LiveKitRoom
-            serverUrl={liveKitUrl}
-            token={roomToken}
-            connect={true}
-            audio={true}
-            video={false}
-            data-lk-theme="default"
-            style={{ height: "100%" }}
+      <div className={transcriptionSectionClassName}>
+        <div className="absolute left-1/2 -top-4 -translate-x-1/2 bottom-0 z-30 translate-y-5">
+          <button
+            type="button"
+            onClick={cycleTranscriptionPanelMode}
+            onKeyDown={handleToggleKeyDown}
+            aria-label={
+              transcriptionPanelMode === "maximized"
+                ? "Minimize live feed and operational notes panel"
+                : transcriptionPanelMode === "minimized"
+                  ? "Restore live feed and operational notes panel"
+                  : "Expand live feed and operational notes panel"
+            }
+            aria-expanded={transcriptionPanelMode !== "minimized"}
+            aria-controls="transcription-panel"
+            className="flex items-center gap-2 rounded-full bg-gray-900 text-gray-100 text-xs px-8 py-1 border border-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <ConnectedTranscriptionPanel
+            <span>Live Feed &amp; Notes</span>
+            <span className="text-base">
+              {transcriptionPanelMode === "maximized"
+                ? "▼"
+                : transcriptionPanelMode === "minimized"
+                  ? "▲"
+                  : "⤢"}
+            </span>
+          </button>
+        </div>
+        <div id="transcription-panel" className="h-full">
+          {roomToken ? (
+            <LiveKitRoom
+              serverUrl={liveKitUrl}
+              token={roomToken}
+              connect={true}
+              audio={true}
+              video={false}
+              data-lk-theme="default"
+              style={{ height: "100%" }}
+            >
+              <ConnectedTranscriptionPanel
+                notes={notes}
+                loadingNotes={loadingNotes}
+                onAddNote={onAddNote}
+                sceneAnalysis={sceneAnalysis}
+              />
+            </LiveKitRoom>
+          ) : (
+            <TranscriptionPanel
               notes={notes}
               loadingNotes={loadingNotes}
               onAddNote={onAddNote}
               sceneAnalysis={sceneAnalysis}
             />
-          </LiveKitRoom>
-        ) : (
-          <TranscriptionPanel
-            notes={notes}
-            loadingNotes={loadingNotes}
-            onAddNote={onAddNote}
-            sceneAnalysis={sceneAnalysis}
-          />
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
