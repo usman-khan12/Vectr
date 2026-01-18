@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AddressBar from "./components/AddressBar.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NotesPanel from "./components/NotesPanel.jsx";
 import AddNoteModal from "./components/AddNoteModal.jsx";
+import VoiceIntakePanel from "./components/VoiceIntakePanel.jsx";
 import { useNotes } from "./hooks/useNotes.js";
+import { analyzeSceneFromSatellite } from "./services/ems.js";
 
 export default function App() {
   const [location, setLocation] = useState(null);
   const [showAddNote, setShowAddNote] = useState(false);
+  const [sceneAnalysis, setSceneAnalysis] = useState("");
+  const [sceneLoading, setSceneLoading] = useState(false);
+  const [sceneError, setSceneError] = useState(null);
   const {
     notes,
     loading: notesLoading,
@@ -18,6 +23,12 @@ export default function App() {
   const handleAddressSelect = (nextLocation) => {
     setLocation(nextLocation);
   };
+
+  useEffect(() => {
+    setSceneAnalysis("");
+    setSceneError(null);
+    setSceneLoading(false);
+  }, [location ? location.address : null]);
 
   const handleOpenGoogleMaps = () => {
     if (!location) {
@@ -65,6 +76,26 @@ export default function App() {
     !!location &&
     typeof location.lat === "number" &&
     typeof location.lng === "number";
+
+  const handleAnalyzeScene = async () => {
+    if (!hasLocation || !location) {
+      return;
+    }
+    setSceneError(null);
+    setSceneLoading(true);
+    try {
+      const analysis = await analyzeSceneFromSatellite(
+        location.lat,
+        location.lng,
+        location.address || "",
+      );
+      setSceneAnalysis(analysis);
+    } catch (error) {
+      setSceneError("Failed to analyze scene");
+    } finally {
+      setSceneLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -139,15 +170,65 @@ export default function App() {
                 className="h-full w-full"
               />
             </div>
-            <div className="h-64 lg:h-72">
-              <MapPanel
-                lat={location ? location.lat : null}
-                lng={location ? location.lng : null}
-                mode="satellite"
-                className="h-full w-full"
-              />
+            <div className="flex flex-col gap-3">
+              <div className="h-64 lg:h-72">
+                <MapPanel
+                  lat={location ? location.lat : null}
+                  lng={location ? location.lng : null}
+                  mode="satellite"
+                  className="h-full w-full"
+                />
+              </div>
+              <div className="rounded-lg border border-gray-800 bg-gray-900/70 p-3 text-xs text-gray-200">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <div>
+                    <div className="text-xs font-semibold text-gray-200">
+                      AI Scene Analysis
+                    </div>
+                    <div className="text-[11px] text-gray-400">
+                      Satellite-based parking, approach routes, and hazards.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeScene}
+                    disabled={!hasLocation || sceneLoading}
+                    className={
+                      "min-h-[32px] rounded-md px-3 py-1 text-[11px] font-medium transition-colors duration-150 " +
+                      (!hasLocation || sceneLoading
+                        ? "cursor-not-allowed bg-gray-700 text-gray-500"
+                        : "bg-purple-600 text-white hover:bg-purple-700")
+                    }
+                  >
+                    {sceneLoading ? "Analyzing..." : "Analyze Scene"}
+                  </button>
+                </div>
+                {sceneError && (
+                  <div className="mb-1 rounded-md border border-red-700 bg-red-900/40 px-2 py-1 text-[11px] text-red-200">
+                    {sceneError}
+                  </div>
+                )}
+                <div className="max-h-36 overflow-y-auto whitespace-pre-wrap text-[11px] leading-snug">
+                  {sceneAnalysis
+                    ? sceneAnalysis
+                    : "Run analysis to see AI guidance on approach routes, parking, and hazards for this address."}
+                </div>
+              </div>
             </div>
           </div>
+
+          <section className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
+            <VoiceIntakePanel
+              address={location ? location.address : ""}
+              disabled={!location}
+              onSaveReport={async (reportText) => {
+                if (!location || !reportText) {
+                  return;
+                }
+                await addNote("general", reportText);
+              }}
+            />
+          </section>
 
           <section className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
             <NotesPanel
