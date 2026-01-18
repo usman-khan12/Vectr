@@ -1,3 +1,4 @@
+// src/services/ems.js
 const API_BASE = import.meta.env.VITE_EMS_API_BASE || "http://localhost:8000";
 
 export async function createEmsReportFromAudioBase64(
@@ -20,7 +21,9 @@ export async function createEmsReportFromAudioBase64(
   });
 
   if (!response.ok) {
-    throw new Error("EMS report request failed");
+    const errorText = await response.text();
+    console.error("EMS Intake Error:", errorText);
+    throw new Error(`EMS report request failed: ${response.status}`);
   }
 
   const data = await response.json();
@@ -47,9 +50,14 @@ export async function analyzeSceneFromSatellite(lat, lng, address) {
   });
 
   if (!response.ok) {
-    throw new Error("Scene analysis request failed");
+    const errorText = await response.text();
+    console.error("EMS Scene Analysis Error:", errorText);
+    throw new Error(`Scene analysis request failed: ${response.status}`);
   }
 
   const data = await response.json();
-  return data.analysis || "";
+  return {
+    analysis: data.analysis || "",
+    positioning_guidance: data.positioning_guidance || "",
+  };
 }

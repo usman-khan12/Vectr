@@ -3,14 +3,21 @@ import os
 from typing import Optional
 
 import requests
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from google import genai
+from livekit.agents import inference
+from livekit.agents.stt.stt import SpeechEventType
+from livekit.agents.utils.codecs import AudioStreamDecoder
 from pydantic import BaseModel
+
+load_dotenv()
 
 
 TOKEN_COMPANY_API_KEY = os.environ.get("TOKEN_COMPANY_API_KEY")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+GEMINI_API_KEY = GOOGLE_API_KEY
 WISPR_API_KEY = os.environ.get("WISPR_API_KEY")
 GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY") or os.environ.get(
     "VITE_GOOGLE_MAPS_API_KEY"
@@ -18,6 +25,17 @@ GOOGLE_MAPS_API_KEY = os.environ.get("GOOGLE_MAPS_API_KEY") or os.environ.get(
 
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+async def startup_event():
+    print("Startup: Checking API Keys...")
+    print(
+        f"TOKEN_COMPANY_API_KEY: {'Set' if TOKEN_COMPANY_API_KEY else 'Not Set'}")
+    print(f"GOOGLE_API_KEY: {'Set' if GOOGLE_API_KEY else 'Not Set'}")
+    print(f"WISPR_API_KEY: {'Set' if WISPR_API_KEY else 'Not Set'}")
+    print(
+        f"GOOGLE_MAPS_API_KEY: {'Set' if GOOGLE_MAPS_API_KEY else 'Not Set'}")
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,6 +74,7 @@ class SceneAnalysisRequest(BaseModel):
 
 class SceneAnalysisResponse(BaseModel):
     analysis: str
+    positioning_guidance: str
 
 
 def compress_text_with_token_company(text: str, aggressiveness: float) -> str:
@@ -103,12 +122,13 @@ def compress_text_with_token_company(text: str, aggressiveness: float) -> str:
 
 
 def generate_ems_report_with_gemini(compressed_text: str) -> str:
-    if not GEMINI_API_KEY and not os.environ.get("GEMINI_API_KEY"):
+    if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500, detail="GEMINI_API_KEY is not configured"
         )
 
-    client = genai.Client()
+    # Pass API key explicitly
+    client = genai.Client(api_key=GEMINI_API_KEY)
 
     prompt = (
         "You are assisting Emergency Medical Services (EMS). "
@@ -192,6 +212,55 @@ def transcribe_with_wispr(audio_base64: str) -> str:
     return text
 
 
+async def transcribe_with_livekit(audio_base64: str) -> str:
+    livekit_url = os.environ.get("LIVEKIT_URL")
+    livekit_api_key = os.environ.get("LIVEKIT_API_KEY")
+    livekit_api_secret = os.environ.get("LIVEKIT_API_SECRET")
+    if not livekit_url or not livekit_api_key or not livekit_api_secret:
+        raise HTTPException(
+            status_code=500, detail="LiveKit credentials are not configured"
+        )
+
+    if not audio_base64 or not audio_base64.strip():
+        raise HTTPException(status_code=400, detail="audio_base64 is required")
+
+    try:
+        audio_bytes = base64.b64decode(audio_base64)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail="Invalid audio_base64") from exc
+
+    stt = inference.STT(model="assemblyai/universal-streaming", language="en")
+    decoder = AudioStreamDecoder(sample_rate=16000, num_channels=1)
+
+    decoder.push(audio_bytes)
+    decoder.end_input()
+
+    stream = stt.stream(language="en")
+
+    async for frame in decoder:
+        stream.push_frame(frame)
+
+    stream.end_input()
+
+    parts: list[str] = []
+
+    async for event in stream:
+        if event.type == SpeechEventType.FINAL_TRANSCRIPT and event.alternatives:
+            parts.append(event.alternatives[0].text)
+
+    await decoder.aclose()
+    await stt.aclose()
+
+    transcription = " ".join(parts).strip()
+    if not transcription:
+        raise HTTPException(
+            status_code=502, detail="LiveKit STT returned an empty transcript"
+        )
+
+    return transcription
+
+
 def fetch_static_satellite_image(lat: float, lng: float) -> bytes:
     api_key = GOOGLE_MAPS_API_KEY
     if not api_key:
@@ -215,14 +284,41 @@ def fetch_static_satellite_image(lat: float, lng: float) -> bytes:
     return response.content
 
 
+def fetch_street_view_image(lat: float, lng: float) -> bytes:
+    """Fetch street view image for positioning analysis."""
+    api_key = GOOGLE_MAPS_API_KEY
+    if not api_key:
+        raise HTTPException(
+            status_code=500, detail="GOOGLE_MAPS_API_KEY is not configured"
+        )
+    url = (
+        "https://maps.googleapis.com/maps/api/streetview"
+        f"?size=640x480&location={lat},{lng}&fov=120&key={api_key}"
+    )
+    try:
+        response = requests.get(url, timeout=30)
+    except requests.RequestException as exc:
+        raise HTTPException(
+            status_code=502, detail="Error fetching street view image"
+        ) from exc
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=502, detail="Failed to fetch street view image"
+        )
+    return response.content
+
+
 def analyze_scene_with_gemini(
     address: str, lat: float, lng: float, image_bytes: bytes
 ) -> str:
-    if not GEMINI_API_KEY and not os.environ.get("GEMINI_API_KEY"):
+    if not GEMINI_API_KEY:
         raise HTTPException(
             status_code=500, detail="GEMINI_API_KEY is not configured"
         )
-    client = genai.Client()
+
+    # Pass API key explicitly
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
     prompt = (
         "You are helping Emergency Medical Services (EMS). "
         f"Address: {address}. "
@@ -267,6 +363,75 @@ def analyze_scene_with_gemini(
     return text
 
 
+def generate_positioning_guidance(
+    address: str, lat: float, lng: float, street_view_bytes: bytes
+) -> str:
+    """Analyze street view to provide ambulance positioning guidance."""
+    if not GEMINI_API_KEY:
+        raise HTTPException(
+            status_code=500, detail="GEMINI_API_KEY is not configured"
+        )
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    prompt = (
+        "You are an EMS positioning expert helping ambulance crews. "
+        f"Address: {address}. "
+        "Analyze this street-level view and provide specific ambulance positioning guidance:\n\n"
+        "1. OPTIMAL PARKING POSITION:\n"
+        "   - Exactly where should the ambulance stop (e.g., 'Park 20ft past the driveway on the right')\n"
+        "   - Which direction should it face for fastest departure\n"
+        "   - Distance from the likely patient pickup point\n\n"
+        "2. STRETCHER PATH:\n"
+        "   - Best route from ambulance to building entrance\n"
+        "   - Surface conditions (grass, concrete, gravel, stairs)\n"
+        "   - Width constraints for stretcher navigation\n\n"
+        "3. EGRESS STRATEGY:\n"
+        "   - Recommended departure direction\n"
+        "   - Turn-around options if needed\n"
+        "   - Traffic/visibility concerns for pulling out\n\n"
+        "4. VISUAL MARKERS:\n"
+        "   - Key landmarks to identify the exact location\n"
+        "   - House numbers, mailboxes, distinctive features\n\n"
+        "Be SPECIFIC with distances and directions. Use clock positions (12 o'clock = straight ahead) "
+        "and cardinal directions. Keep it concise - crews read this while driving."
+    )
+
+    image_b64 = base64.b64encode(street_view_bytes).decode("utf-8")
+    contents = [
+        {
+            "parts": [
+                {"text": prompt},
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": image_b64,
+                    }
+                },
+            ]
+        }
+    ]
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=contents,
+        )
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502, detail="Error calling Gemini API for positioning"
+        ) from exc
+
+    text = getattr(response, "text", None)
+    if callable(text):
+        text = response.text()
+    if not isinstance(text, str) or not text.strip():
+        raise HTTPException(
+            status_code=502, detail="Invalid response from Gemini API"
+        )
+    return text
+
+
 @app.post("/ems/report", response_model=EMSReportResponse)
 def create_ems_report(payload: EMSRequest) -> EMSReportResponse:
     if not payload.call_text or not payload.call_text.strip():
@@ -288,11 +453,13 @@ def create_ems_report(payload: EMSRequest) -> EMSReportResponse:
 
 
 @app.post("/ems/intake", response_model=EMSIntakeResponse)
-def create_ems_report_from_audio(payload: EMSIntakeRequest) -> EMSIntakeResponse:
+async def create_ems_report_from_audio(
+    payload: EMSIntakeRequest,
+) -> EMSIntakeResponse:
     if not payload.audio_base64 or not payload.audio_base64.strip():
         raise HTTPException(status_code=400, detail="audio_base64 is required")
 
-    transcription = transcribe_with_wispr(payload.audio_base64)
+    transcription = await transcribe_with_livekit(payload.audio_base64)
 
     aggressiveness = payload.aggressiveness if payload.aggressiveness is not None else 0.5
     if not 0.0 <= aggressiveness <= 1.0:
@@ -314,14 +481,33 @@ def create_ems_report_from_audio(payload: EMSIntakeRequest) -> EMSIntakeResponse
 
 @app.post("/ems/scene-analysis", response_model=SceneAnalysisResponse)
 def analyze_scene(payload: SceneAnalysisRequest) -> SceneAnalysisResponse:
-    image_bytes = fetch_static_satellite_image(payload.lat, payload.lng)
-    analysis = analyze_scene_with_gemini(
-        payload.address, payload.lat, payload.lng, image_bytes
-    )
-    return SceneAnalysisResponse(analysis=analysis)
+    try:
+        # Get satellite image for scene analysis
+        satellite_bytes = fetch_static_satellite_image(
+            payload.lat, payload.lng)
+        analysis = analyze_scene_with_gemini(
+            payload.address, payload.lat, payload.lng, satellite_bytes
+        )
+
+        # Get street view image for positioning guidance
+        try:
+            street_view_bytes = fetch_street_view_image(
+                payload.lat, payload.lng)
+            positioning = generate_positioning_guidance(
+                payload.address, payload.lat, payload.lng, street_view_bytes
+            )
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            positioning = "Street view unavailable for this location."
+
+        return SceneAnalysisResponse(analysis=analysis, positioning_guidance=positioning)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise e
 
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run("voice:app", host="0.0.0.0", port=8000, reload=True)

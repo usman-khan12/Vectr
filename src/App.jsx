@@ -11,8 +11,10 @@ export default function App() {
   const [location, setLocation] = useState(null);
   const [showAddNote, setShowAddNote] = useState(false);
   const [sceneAnalysis, setSceneAnalysis] = useState("");
+  const [positioningGuidance, setPositioningGuidance] = useState("");
   const [sceneLoading, setSceneLoading] = useState(false);
   const [sceneError, setSceneError] = useState(null);
+  const [showPositioning, setShowPositioning] = useState(false);
   const {
     notes,
     loading: notesLoading,
@@ -26,50 +28,36 @@ export default function App() {
 
   useEffect(() => {
     setSceneAnalysis("");
+    setPositioningGuidance("");
     setSceneError(null);
     setSceneLoading(false);
+    setShowPositioning(false);
   }, [location ? location.address : null]);
 
   const handleOpenGoogleMaps = () => {
-    if (!location) {
-      return;
-    }
+    if (!location) return;
     const hasCoords =
       typeof location.lat === "number" && typeof location.lng === "number";
     let url = null;
     if (hasCoords) {
-      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-        `${location.lat},${location.lng}`,
-      )}`;
+      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${location.lat},${location.lng}`)}`;
     } else if (location.address) {
-      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-        location.address,
-      )}`;
+      url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(location.address)}`;
     }
-    if (url && typeof window !== "undefined") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleOpenWaze = () => {
-    if (!location) {
-      return;
-    }
+    if (!location) return;
     const hasCoords =
       typeof location.lat === "number" && typeof location.lng === "number";
     let url = null;
     if (hasCoords) {
-      url = `https://waze.com/ul?ll=${encodeURIComponent(
-        `${location.lat},${location.lng}`,
-      )}&navigate=yes`;
+      url = `https://waze.com/ul?ll=${encodeURIComponent(`${location.lat},${location.lng}`)}&navigate=yes`;
     } else if (location.address) {
-      url = `https://waze.com/ul?q=${encodeURIComponent(
-        location.address,
-      )}&navigate=yes`;
+      url = `https://waze.com/ul?q=${encodeURIComponent(location.address)}&navigate=yes`;
     }
-    if (url && typeof window !== "undefined") {
-      window.open(url, "_blank", "noopener,noreferrer");
-    }
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const hasLocation =
@@ -78,18 +66,18 @@ export default function App() {
     typeof location.lng === "number";
 
   const handleAnalyzeScene = async () => {
-    if (!hasLocation || !location) {
-      return;
-    }
+    if (!hasLocation || !location) return;
     setSceneError(null);
     setSceneLoading(true);
     try {
-      const analysis = await analyzeSceneFromSatellite(
+      const result = await analyzeSceneFromSatellite(
         location.lat,
         location.lng,
         location.address || "",
       );
-      setSceneAnalysis(analysis);
+      setSceneAnalysis(result.analysis);
+      setPositioningGuidance(result.positioning_guidance);
+      setShowPositioning(true);
     } catch (error) {
       setSceneError("Failed to analyze scene");
     } finally {
@@ -162,14 +150,61 @@ export default function App() {
 
         <main className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <div className="h-64 lg:h-72">
+            {/* Street View with Positioning Overlay */}
+            <div className="relative h-64 lg:h-72">
               <MapPanel
                 lat={location ? location.lat : null}
                 lng={location ? location.lng : null}
                 mode="street"
                 className="h-full w-full"
               />
+              {showPositioning && positioningGuidance && (
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-black/70 rounded-full px-3 py-1">
+                    <span className="text-xs text-green-400 font-medium">
+                      ↑ APPROACH
+                    </span>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 pointer-events-auto">
+                    <div className="bg-gradient-to-t from-black/90 via-black/70 to-transparent pt-8 pb-3 px-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-amber-400 text-lg">🚑</span>
+                            <span className="text-xs font-bold text-amber-400 uppercase tracking-wide">
+                              Positioning
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-gray-200 leading-tight max-h-16 overflow-y-auto pr-2">
+                            {positioningGuidance
+                              .split("\n")
+                              .slice(0, 3)
+                              .join(" • ")}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowPositioning(false)}
+                          className="text-gray-400 hover:text-white text-xs px-2 py-1 rounded bg-gray-800/50"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {!showPositioning && positioningGuidance && (
+                <button
+                  type="button"
+                  onClick={() => setShowPositioning(true)}
+                  className="absolute bottom-3 left-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium px-3 py-1.5 rounded-md flex items-center gap-1"
+                >
+                  🚑 Show Positioning
+                </button>
+              )}
             </div>
+
             <div className="flex flex-col gap-3">
               <div className="h-64 lg:h-72">
                 <MapPanel
@@ -209,23 +244,42 @@ export default function App() {
                   </div>
                 )}
                 <div className="max-h-36 overflow-y-auto whitespace-pre-wrap text-[11px] leading-snug">
-                  {sceneAnalysis
-                    ? sceneAnalysis
-                    : "Run analysis to see AI guidance on approach routes, parking, and hazards for this address."}
+                  {sceneAnalysis ||
+                    "Run analysis to see AI guidance on approach routes, parking, and hazards for this address."}
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Full Positioning Panel */}
+          {positioningGuidance && (
+            <section className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🚑</span>
+                <div>
+                  <div className="text-sm font-semibold text-amber-400">
+                    Ambulance Positioning Guide
+                  </div>
+                  <div className="text-xs text-amber-200/70">
+                    AI-generated from street view analysis
+                  </div>
+                </div>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3">
+                <div className="text-xs text-gray-200 whitespace-pre-wrap leading-relaxed max-h-48 overflow-y-auto">
+                  {positioningGuidance}
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
             <VoiceIntakePanel
               address={location ? location.address : ""}
               disabled={!location}
               onSaveReport={async (reportText) => {
-                if (!location || !reportText) {
-                  return;
-                }
-                await addNote("general", reportText);
+                if (location && reportText)
+                  await addNote("general", reportText);
               }}
             />
           </section>
