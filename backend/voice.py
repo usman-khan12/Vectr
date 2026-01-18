@@ -193,7 +193,7 @@ def generate_comprehensive_ems_report(
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-pro",
             contents=prompt,
         )
         text = getattr(response, "text", None)
@@ -383,7 +383,7 @@ def generate_ems_report_with_gemini(compressed_text: str) -> str:
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-pro",
             contents=prompt,
         )
     except Exception as exc:
@@ -563,7 +563,7 @@ def analyze_scene_with_gemini(
     ]
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-pro",
             contents=contents,
         )
     except Exception as exc:
@@ -625,7 +625,7 @@ def generate_positioning_guidance(
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-pro",
             contents=contents,
         )
     except Exception as exc:
@@ -706,7 +706,7 @@ Return ONLY the JSON, no markdown, no explanation."""
 
     try:
         response = client.models.generate_content(
-            model="gemini-2.5-flash-lite",
+            model="gemini-2.5-pro",
             contents=contents,
         )
         text = response.text if hasattr(response, "text") else str(response)
