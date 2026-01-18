@@ -85,7 +85,7 @@ export default function AddressBar(props) {
 
   return (
     <div className={className}>
-      <div className="flex items-center gap-3 rounded-lg border border-gray-600 bg-gray-800 px-4 py-3">
+      <div className="flex items-center gap-2 rounded-lg border border-gray-600 bg-gray-800 px-3 py-2">
         <span className="text-gray-400">🔍</span>
         <div ref={containerRef} className="w-full" />
       </div>

@@ -44,7 +44,7 @@ export function EmergencyLayout({
   return (
     <div className="flex flex-col h-screen w-screen bg-ems-white text-slate-900 overflow-hidden font-sans selection:bg-ems-blue/30">
       {/* Header */}
-      <header className="flex-none bg-ems-blue border-b border-ems-blue-light flex items-center px-4 py-2 gap-4 z-50 shadow-md">
+      <header className="flex-none bg-ems-blue border-b border-ems-blue-light flex items-center px-4 py-1 gap-3 z-50 shadow-md">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-ems-red rounded flex items-center justify-center font-bold text-lg shadow-black/20 shadow-lg text-white">
             V
@@ -86,7 +86,7 @@ export function EmergencyLayout({
       </header>
 
       {/* Main Grid */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-[2] flex min-h-0 overflow-hidden">
         {/* Left Panel: Ambulance & Positioning */}
         <div className="w-80 flex-none z-10 hidden md:block shadow-xl shadow-black/20">
           <AmbulancePanel positioningGuidance={positioningGuidance} />
@@ -118,7 +118,7 @@ export function EmergencyLayout({
         </div>
       </div>
 
-      <div className="flex-none z-20 h-[45vh] min-h-[16rem] shadow-[0_-4px_20px_rgba(0,0,0,0.1)] overflow-hidden">
+      <div className="flex-[1] z-20 min-h-0 shadow-[0_-4px_20px_rgba(0,0,0,0.1)] overflow-hidden">
         {roomToken ? (
           <LiveKitRoom
             serverUrl={liveKitUrl}

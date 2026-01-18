@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import ReactMarkdown from "react-markdown";
 import {
   useVoiceAssistant,
   BarVisualizer,
@@ -54,6 +55,18 @@ function BaseTranscriptionPanel({
   voiceState,
   audioTrack,
 }) {
+  const [noteInput, setNoteInput] = useState("");
+
+  const handleNoteKeyDown = (event) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      const value = noteInput.trim();
+      if (!value || !onAddNote) return;
+      onAddNote(value);
+      setNoteInput("");
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 h-full gap-4 bg-gray-950 p-4 border-t border-gray-800 overflow-hidden">
       {/* Left: Live Transcription / Agent */}
@@ -82,7 +95,9 @@ function BaseTranscriptionPanel({
                 <div className="text-[11px] font-bold text-blue-400 mb-1">
                   LIVE UPDATE
                 </div>
-                <p className="text-sm text-gray-200">{latestUpdate}</p>
+                <ReactMarkdown className="text-sm text-gray-200 leading-relaxed">
+                  {latestUpdate}
+                </ReactMarkdown>
               </div>
             )}
             {sceneAnalysis && (
@@ -90,9 +105,9 @@ function BaseTranscriptionPanel({
                 <div className="text-[11px] font-bold text-purple-400 mb-1">
                   SCENE INTELLIGENCE
                 </div>
-                <p className="text-sm text-gray-300 whitespace-pre-wrap">
+                <ReactMarkdown className="text-sm text-gray-300 leading-relaxed">
                   {sceneAnalysis}
-                </p>
+                </ReactMarkdown>
               </div>
             )}
           </div>
@@ -105,12 +120,17 @@ function BaseTranscriptionPanel({
           <h3 className="text-base font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
             <span>📝</span> Operational Notes
           </h3>
-          <button
-            onClick={onAddNote}
-            className="px-3 py-1 bg-gray-800 hover:bg-gray-700 text-white text-xs font-medium rounded border border-gray-600 transition-colors"
-          >
-            + Add Entry
-          </button>
+        </div>
+
+        <div className="mb-3">
+          <textarea
+            value={noteInput}
+            onChange={(event) => setNoteInput(event.target.value)}
+            onKeyDown={handleNoteKeyDown}
+            className="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            placeholder="Type operational note and press Enter to generate structured report"
+            rows={2}
+          />
         </div>
 
         <div className="flex-1 bg-gray-900 rounded-lg border border-gray-800 p-4 overflow-y-auto">
@@ -133,7 +153,9 @@ function BaseTranscriptionPanel({
                       {note.author || "SYSTEM"}
                     </span>
                   </div>
-                  <p className="text-base text-gray-200">{note.content}</p>
+                  <ReactMarkdown className="text-sm text-gray-200 leading-relaxed">
+                    {note.content || ""}
+                  </ReactMarkdown>
                 </div>
               ))}
             </div>

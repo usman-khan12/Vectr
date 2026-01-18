@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { EmergencyLayout } from "./components/layout/EmergencyLayout";
-import AddNoteModal from "./components/AddNoteModal.jsx";
 import { useNotes } from "./hooks/useNotes.js";
 import { analyzeSceneFromSatellite } from "./services/ems.js";
 
@@ -8,7 +7,6 @@ const LIVEKIT_URL = import.meta.env.VITE_LIVEKIT_URL;
 
 export default function App() {
   const [location, setLocation] = useState(null);
-  const [showAddNote, setShowAddNote] = useState(false);
   const [sceneAnalysis, setSceneAnalysis] = useState("");
   const [positioningGuidance, setPositioningGuidance] = useState("");
   const [emsReport, setEmsReport] = useState(null);
@@ -124,12 +122,45 @@ export default function App() {
       setSceneAnalysis(data.scene_analysis);
       setPositioningGuidance(data.positioning_guidance);
       setEmsReport(data.ems_report);
+
+      // Add the generated EMS report to the notes collection
+      if (data.ems_report) {
+        await addNote("report", data.ems_report);
+      }
+
       setShowPositioning(true);
     } catch (e) {
       console.error(e);
       alert("Failed to create incident room");
     } finally {
       setIncidentLoading(false);
+    }
+  };
+
+  const handleOperationalNoteSubmit = async (rawText) => {
+    if (!location || !location.address) return;
+
+    try {
+      const response = await fetch("http://localhost:8000/ems/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          call_text: rawText,
+          aggressiveness: 0.5,
+        }),
+      });
+
+      if (!response.ok) {
+        console.error("Failed to generate EMS operational note");
+        return;
+      }
+
+      const data = await response.json();
+      const content = data.ai_response || rawText;
+
+      await addNote("operational", content);
+    } catch (error) {
+      console.error("Error creating operational note", error);
     }
   };
 
@@ -153,18 +184,8 @@ export default function App() {
         incidentLoading={incidentLoading}
         notes={notes}
         loadingNotes={notesLoading}
-        onAddNote={() => setShowAddNote(true)}
+        onAddNote={handleOperationalNoteSubmit}
       />
-      {showAddNote && location && (
-        <AddNoteModal
-          address={location.address}
-          onClose={() => setShowAddNote(false)}
-          onSave={async (type, content) => {
-            await addNote(type, content);
-            setShowAddNote(false);
-          }}
-        />
-      )}
     </>
   );
 }
