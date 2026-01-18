@@ -82,14 +82,6 @@ export function useNotes(address) {
     };
     const notesRef = collection(db, "notes");
     await addDoc(notesRef, docData);
-    try {
-      fieldUnit.sendNote({
-        type: docData.type,
-        content: docData.content,
-      });
-    } catch (error) {
-      console.error("useNotes field unit notify error", error);
-    }
   };
 
   const refreshNotes = () => {
