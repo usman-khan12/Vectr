@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import IncidentRoom from "./components/IncidentRoom";
 import AddressBar from "./components/AddressBar.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NotesPanel from "./components/NotesPanel.jsx";
@@ -15,6 +16,12 @@ export default function App() {
   const [sceneLoading, setSceneLoading] = useState(false);
   const [sceneError, setSceneError] = useState(null);
   const [showPositioning, setShowPositioning] = useState(false);
+
+  // Incident Room State
+  const [incidentRoom, setIncidentRoom] = useState(null);
+  const [roomToken, setRoomToken] = useState(null);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+
   const {
     notes,
     loading: notesLoading,
@@ -82,6 +89,40 @@ export default function App() {
       setSceneError("Failed to analyze scene");
     } finally {
       setSceneLoading(false);
+    }
+  };
+
+  const handleCreateIncident = async () => {
+    if (!hasLocation || !location) return;
+    setIncidentLoading(true);
+
+    try {
+      // Use existing endpoint structure but now it also creates the room
+      const response = await fetch("http://localhost:8000/incident/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          incident_id: Date.now().toString(),
+          address: location.address,
+          lat: location.lat,
+          lng: location.lng,
+          caller_notes: "Dispatch initiated via VECTR web",
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to create incident");
+
+      const data = await response.json();
+      setIncidentRoom(data.room_name);
+      setRoomToken(data.token_dispatcher);
+      setSceneAnalysis(data.scene_analysis);
+      setPositioningGuidance(data.positioning_guidance);
+      setShowPositioning(true);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create incident room");
+    } finally {
+      setIncidentLoading(false);
     }
   };
 
@@ -272,6 +313,40 @@ export default function App() {
               </div>
             </section>
           )}
+
+          <section className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-200">
+                Incident Voice Command
+              </h2>
+              {!incidentRoom && (
+                <button
+                  onClick={handleCreateIncident}
+                  disabled={!hasLocation || incidentLoading}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                    !hasLocation || incidentLoading
+                      ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                      : "bg-red-600 hover:bg-red-700 text-white animate-pulse"
+                  }`}
+                >
+                  {incidentLoading
+                    ? "Creating Incident..."
+                    : "🚨 Create Incident & Join Voice"}
+                </button>
+              )}
+            </div>
+
+            <IncidentRoom
+              token={roomToken}
+              roomName={incidentRoom}
+              sceneAnalysis={sceneAnalysis}
+              positioningGuidance={positioningGuidance}
+              onDisconnect={() => {
+                setIncidentRoom(null);
+                setRoomToken(null);
+              }}
+            />
+          </section>
 
           <section className="rounded-lg border border-gray-800 bg-gray-900/70 p-4">
             <VoiceIntakePanel

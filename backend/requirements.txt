@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+requests
+pydantic
+google-genai
+python-dotenv
+livekit-agents[codecs,silero,turn-detector]~=1.3
+livekit-plugins-noise-cancellation~=0.2
