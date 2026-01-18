@@ -9,7 +9,6 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "../services/firebase.js";
-import { fieldUnit } from "../services/websocket.js";
 
 function normalizeAddress(address) {
   if (!address) {

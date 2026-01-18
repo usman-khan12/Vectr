@@ -1,10 +1,8 @@
 import { useState } from "react";
-import FieldUnitStatus from "./components/FieldUnitStatus.jsx";
 import AddressBar from "./components/AddressBar.jsx";
 import MapPanel from "./components/MapPanel.jsx";
 import NotesPanel from "./components/NotesPanel.jsx";
 import DashcamPanel from "./components/DashcamPanel.jsx";
-import DispatchButton from "./components/DispatchButton.jsx";
 import AddNoteModal from "./components/AddNoteModal.jsx";
 import { useNotes } from "./hooks/useNotes.js";
 
