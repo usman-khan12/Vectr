@@ -63,6 +63,7 @@ class CreateIncidentResponse(BaseModel):
     token_emt: str
     scene_analysis: str
     positioning_guidance: str
+    ems_report: str
 
 
 class TriggerBriefingRequest(BaseModel):
@@ -100,6 +101,9 @@ class SceneAnalysisRequest(BaseModel):
 class SceneAnalysisResponse(BaseModel):
     analysis: str
     positioning_guidance: str
+    pois: list["StructuredPOI"] = []
+    recommended_heading: int = 0
+    approach_heading: int = 0
 
 
 def compress_text_with_token_company(text: str, aggressiveness: float) -> str:
@@ -154,6 +158,50 @@ def get_livekit_api():
     )
 
 
+def generate_comprehensive_ems_report(
+    address: str,
+    caller_notes: str,
+    scene_analysis: str,
+    positioning_guidance: str,
+) -> str:
+    """
+    Generate a comprehensive EMS report combining caller notes,
+    satellite scene analysis, and street view positioning.
+    """
+    if not GEMINI_API_KEY:
+        return "Gemini API key missing, cannot generate report."
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    prompt = (
+        "You are an EMS Incident Commander. Generate a consolidated 'Tactical Scene Report' "
+        "for responding crews based on the following intelligence:\n\n"
+        f"LOCATION: {address}\n"
+        f"CALLER NOTES/DISPATCH INFO: {caller_notes}\n\n"
+        f"SATELLITE SCENE INTELLIGENCE:\n{scene_analysis}\n\n"
+        f"STREET VIEW POSITIONING DATA:\n{positioning_guidance}\n\n"
+        "OUTPUT FORMAT:\n"
+        "Create a concise, structured report with these headers:\n"
+        "1. SITUATION SUMMARY (Combine caller notes & nature of incident)\n"
+        "2. ACCESS & STAGING (Best approach, parking, entry points)\n"
+        "3. HAZARDS & SAFETY (From visual analysis and caller info)\n"
+        "4. PATIENT INFO (If available in notes, otherwise 'Unknown - En Route')\n\n"
+        "Style: Telegraphic, tactical, suitable for radio read-back. No fluff."
+    )
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=prompt,
+        )
+        text = getattr(response, "text", None)
+        if callable(text):
+            text = response.text()
+        return text if text else "Report generation returned empty."
+    except Exception as e:
+        return f"Failed to generate EMS report: {str(e)}"
+
+
 @app.post("/incident/create", response_model=CreateIncidentResponse)
 async def create_incident(payload: CreateIncidentRequest):
     """
@@ -161,6 +209,7 @@ async def create_incident(payload: CreateIncidentRequest):
     1. LiveKit room for voice communication
     2. Pre-analyzed scene intelligence (satellite + street view)
     3. Access tokens for dispatcher and EMT
+    4. Comprehensive EMS Report
 
     The VECTR agent will automatically join and speak the briefing.
     """
@@ -183,7 +232,12 @@ async def create_incident(payload: CreateIncidentRequest):
     except Exception as e:
         positioning_guidance = f"Positioning guidance unavailable: {str(e)}"
 
-    # 2. Compress scene data for room metadata using Token Company
+    # 2. Generate Comprehensive EMS Report
+    ems_report = generate_comprehensive_ems_report(
+        payload.address, payload.caller_notes, scene_analysis, positioning_guidance
+    )
+
+    # 3. Compress scene data for room metadata using Token Company
     try:
         compressed_scene = compress_text_with_token_company(
             scene_analysis, aggressiveness=0.3
@@ -198,7 +252,7 @@ async def create_incident(payload: CreateIncidentRequest):
     except Exception:
         compressed_positioning = positioning_guidance
 
-    # 3. Create LiveKit room with incident metadata
+    # 4. Create LiveKit room with incident metadata
     lk = get_livekit_api()
 
     room_metadata = json.dumps(
@@ -211,6 +265,7 @@ async def create_incident(payload: CreateIncidentRequest):
             # Compressed for better LLM context packing
             "scene_analysis": compressed_scene[:1000],
             "positioning_guidance": compressed_positioning[:1000],
+            "ems_report": ems_report[:1000],
         }
     )
 
@@ -226,7 +281,7 @@ async def create_incident(payload: CreateIncidentRequest):
         # Room might already exist
         logger.warning(f"Room creation note: {e}")
 
-    # 4. Generate access tokens
+    # 5. Generate access tokens
     token_dispatcher = livekit_api.AccessToken(
         api_key=os.getenv("LIVEKIT_API_KEY"),
         api_secret=os.getenv("LIVEKIT_API_SECRET"),
@@ -263,6 +318,7 @@ async def create_incident(payload: CreateIncidentRequest):
         token_emt=token_emt.to_jwt(),
         scene_analysis=scene_analysis,
         positioning_guidance=positioning_guidance,
+        ems_report=ems_report,
     )
 
 
@@ -581,6 +637,99 @@ def generate_positioning_guidance(
     return text
 
 
+class StructuredPOI(BaseModel):
+    type: str
+    description: str
+    heading: int
+    priority: int
+
+
+class StructuredPositioningResponse(BaseModel):
+    pois: list[StructuredPOI]
+    recommended_heading: int
+    approach_heading: int
+    raw_guidance: str
+
+
+def generate_structured_positioning(
+    address: str, lat: float, lng: float, street_view_bytes: bytes
+) -> StructuredPositioningResponse:
+    if not GEMINI_API_KEY:
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    prompt = f"""You are analyzing a street view for EMS ambulance positioning at {address}.
+
+CRITICAL: Respond ONLY with valid JSON matching this exact schema:
+{{
+  "pois": [
+    {{
+      "type": "entrance|parking|hazard|approach",
+      "description": "brief description",
+      "heading": 0-360,
+      "priority": 1-5
+    }}
+  ],
+  "recommended_heading": 0-360,
+  "approach_heading": 0-360,
+  "raw_guidance": "2-3 sentence summary for display"
+}}
+
+Heading is compass direction from camera position (0=North, 90=East, 180=South, 270=West).
+Analyze:
+1. Where should the ambulance park? (recommended_heading = direction truck faces)
+2. Where is the main entrance? (POI with type "entrance")
+3. Best approach direction? (approach_heading)
+4. Any hazards to flag? (POI with type "hazard")
+
+Return ONLY the JSON, no markdown, no explanation."""
+
+    image_b64 = base64.b64encode(street_view_bytes).decode("utf-8")
+    contents = [
+        {
+            "parts": [
+                {"text": prompt},
+                {
+                    "inline_data": {
+                        "mime_type": "image/jpeg",
+                        "data": image_b64,
+                    }
+                },
+            ]
+        }
+    ]
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash-lite",
+            contents=contents,
+        )
+        text = response.text if hasattr(response, "text") else str(response)
+
+        text = text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[1].rsplit("```", 1)[0]
+
+        data = json.loads(text)
+        return StructuredPositioningResponse(
+            pois=[StructuredPOI(**p) for p in data.get("pois", [])],
+            recommended_heading=data.get("recommended_heading", 0),
+            approach_heading=data.get("approach_heading", 0),
+            raw_guidance=data.get("raw_guidance", ""),
+        )
+    except Exception as e:
+        return StructuredPositioningResponse(
+            pois=[],
+            recommended_heading=0,
+            approach_heading=0,
+            raw_guidance=f"Analysis unavailable: {str(e)}",
+        )
+
+
+SceneAnalysisResponse.model_rebuild()
+
+
 @app.post("/ems/report", response_model=EMSReportResponse)
 def create_ems_report(payload: EMSRequest) -> EMSReportResponse:
     if not payload.call_text or not payload.call_text.strip():
@@ -657,34 +806,22 @@ async def create_ems_report_from_audio(
 
 
 @app.post("/ems/scene-analysis", response_model=SceneAnalysisResponse)
-def analyze_scene(payload: SceneAnalysisRequest) -> SceneAnalysisResponse:
-    try:
-        # Get satellite image for scene analysis
-        satellite_bytes = fetch_static_satellite_image(payload.lat, payload.lng)
-        analysis = analyze_scene_with_gemini(
-            payload.address, payload.lat, payload.lng, satellite_bytes
-        )
+async def scene_analysis(request: SceneAnalysisRequest) -> SceneAnalysisResponse:
+    lat, lng, address = request.lat, request.lng, request.address
 
-        # Get street view image for positioning guidance
-        try:
-            street_view_bytes = fetch_street_view_image(payload.lat, payload.lng)
-            positioning = generate_positioning_guidance(
-                payload.address, payload.lat, payload.lng, street_view_bytes
-            )
-        except Exception:
-            import traceback
+    satellite_bytes = fetch_static_satellite_image(lat, lng)
+    analysis = analyze_scene_with_gemini(address, lat, lng, satellite_bytes)
 
-            traceback.print_exc()
-            positioning = "Street view unavailable for this location."
+    street_view_bytes = fetch_street_view_image(lat, lng)
+    structured = generate_structured_positioning(address, lat, lng, street_view_bytes)
 
-        return SceneAnalysisResponse(
-            analysis=analysis, positioning_guidance=positioning
-        )
-    except Exception as e:
-        import traceback
-
-        traceback.print_exc()
-        raise e
+    return SceneAnalysisResponse(
+        analysis=analysis,
+        positioning_guidance=structured.raw_guidance,
+        pois=structured.pois,
+        recommended_heading=structured.recommended_heading,
+        approach_heading=structured.approach_heading,
+    )
 
 
 if __name__ == "__main__":

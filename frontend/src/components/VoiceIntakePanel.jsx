@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { createEmsReportFromAudioBase64 } from "../services/ems.js";
 
 async function blobToBase64(blob) {
@@ -99,7 +99,7 @@ async function convertWebMToWav(webmBlob) {
 }
 
 export default function VoiceIntakePanel(props) {
-  const { address, disabled, onSaveReport } = props || {};
+  const { address, disabled, onSaveReport, initialReport } = props || {};
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
@@ -107,6 +107,12 @@ export default function VoiceIntakePanel(props) {
   const [error, setError] = useState(null);
   const [transcription, setTranscription] = useState("");
   const [report, setReport] = useState("");
+
+  useEffect(() => {
+    if (initialReport) {
+      setReport(initialReport);
+    }
+  }, [initialReport]);
 
   const canUseMedia =
     typeof window !== "undefined" &&

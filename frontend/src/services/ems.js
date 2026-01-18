@@ -35,29 +35,25 @@ export async function createEmsReportFromAudioBase64(
 }
 
 export async function analyzeSceneFromSatellite(lat, lng, address) {
-  const payload = {
-    lat,
-    lng,
-    address: address || "",
-  };
+  const payload = { lat, lng, address: address || "" };
 
   const response = await fetch(`${API_BASE}/ems/scene-analysis`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    console.error("EMS Scene Analysis Error:", errorText);
-    throw new Error(`Scene analysis request failed: ${response.status}`);
+    throw new Error("Scene analysis request failed");
   }
 
   const data = await response.json();
   return {
     analysis: data.analysis || "",
     positioning_guidance: data.positioning_guidance || "",
+    // NEW: structured data for Ghost Navigator
+    pois: data.pois || [],
+    recommendedHeading: data.recommended_heading || 0,
+    approachHeading: data.approach_heading || 0,
   };
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import IncidentRoom from "./components/IncidentRoom";
 import AddressBar from "./components/AddressBar.jsx";
-import MapPanel from "./components/MapPanel.jsx";
+import { MapPanel } from "./components/MapPanel.jsx";
 import NotesPanel from "./components/NotesPanel.jsx";
 import AddNoteModal from "./components/AddNoteModal.jsx";
 import VoiceIntakePanel from "./components/VoiceIntakePanel.jsx";
@@ -13,6 +13,11 @@ export default function App() {
   const [showAddNote, setShowAddNote] = useState(false);
   const [sceneAnalysis, setSceneAnalysis] = useState("");
   const [positioningGuidance, setPositioningGuidance] = useState("");
+  const [emsReport, setEmsReport] = useState(null);
+  // NEW: Ghost Navigator state
+  const [pois, setPois] = useState([]);
+  const [recommendedHeading, setRecommendedHeading] = useState(null);
+
   const [sceneLoading, setSceneLoading] = useState(false);
   const [sceneError, setSceneError] = useState(null);
   const [showPositioning, setShowPositioning] = useState(false);
@@ -36,6 +41,9 @@ export default function App() {
   useEffect(() => {
     setSceneAnalysis("");
     setPositioningGuidance("");
+    setEmsReport(null);
+    setPois([]);
+    setRecommendedHeading(null);
     setSceneError(null);
     setSceneLoading(false);
     setShowPositioning(false);
@@ -84,6 +92,10 @@ export default function App() {
       );
       setSceneAnalysis(result.analysis);
       setPositioningGuidance(result.positioning_guidance);
+      // NEW: Set structured data
+      setPois(result.pois || []);
+      setRecommendedHeading(result.recommendedHeading || 0);
+
       setShowPositioning(true);
     } catch (error) {
       setSceneError("Failed to analyze scene");
@@ -117,6 +129,7 @@ export default function App() {
       setRoomToken(data.token_dispatcher);
       setSceneAnalysis(data.scene_analysis);
       setPositioningGuidance(data.positioning_guidance);
+      setEmsReport(data.ems_report);
       setShowPositioning(true);
     } catch (e) {
       console.error(e);
@@ -198,6 +211,9 @@ export default function App() {
                 lng={location ? location.lng : null}
                 mode="street"
                 className="h-full w-full"
+                pois={pois}
+                recommendedHeading={recommendedHeading}
+                autoNavigate={showPositioning}
               />
               {showPositioning && positioningGuidance && (
                 <div className="absolute inset-0 pointer-events-none">
@@ -352,6 +368,7 @@ export default function App() {
             <VoiceIntakePanel
               address={location ? location.address : ""}
               disabled={!location}
+              initialReport={emsReport}
               onSaveReport={async (reportText) => {
                 if (location && reportText)
                   await addNote("general", reportText);

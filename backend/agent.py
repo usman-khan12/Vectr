@@ -39,9 +39,15 @@ class VECTRAgent(Agent):
     def __init__(self, incident_data: dict = None):
         self.incident_data = incident_data or {}
 
+        address_instruction = ""
+        if self.incident_data.get("address"):
+            address_instruction = f"You are currently managing an active incident at: {self.incident_data['address']}."
+
         super().__init__(
-            instructions="""You are VECTR, a tactical EMS dispatch AI assistant. You provide brief, clear,
+            instructions=f"""You are VECTR, a tactical EMS dispatch AI assistant. You provide brief, clear,
 hands-free guidance to EMT crews while they drive to scenes.
+
+{address_instruction}
 
 Your communication style:
 - Speak in short, clear sentences
