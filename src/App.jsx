@@ -15,7 +15,7 @@ export default function App() {
     notes,
     loading: notesLoading,
     error: notesError,
-    addNote
+    addNote,
   } = useNotes(location ? location.address : null);
 
   const handleAddressSelect = (nextLocation) => {

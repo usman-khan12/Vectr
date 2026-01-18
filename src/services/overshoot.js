@@ -33,15 +33,15 @@ export async function analyzeFrame(imageDataUrl) {
   formData.append("image", blob, "frame.jpg");
   formData.append(
     "prompt",
-    "Identify driveways, gates, steep grades, obstacles, and house numbers"
+    "Identify driveways, gates, steep grades, obstacles, and house numbers",
   );
 
   const response = await fetch("https://api.overshoot.example/analyze", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${API_KEY}`
+      Authorization: `Bearer ${API_KEY}`,
     },
-    body: formData
+    body: formData,
   });
 
   if (!response.ok) {
@@ -50,7 +50,7 @@ export async function analyzeFrame(imageDataUrl) {
 
   const data = await response.json();
   return {
-    detections: Array.isArray(data.detections) ? data.detections : []
+    detections: Array.isArray(data.detections) ? data.detections : [],
   };
 }
 

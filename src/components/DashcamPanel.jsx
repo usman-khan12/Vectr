@@ -24,7 +24,7 @@ export default function DashcamPanel() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: false
+        audio: false,
       });
       streamRef.current = stream;
       setError(null);

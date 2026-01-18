@@ -38,8 +38,8 @@ export default function MapPanel(props) {
           {
             position,
             pov: { heading: 0, pitch: 0 },
-            zoom: 1
-          }
+            zoom: 1,
+          },
         );
       } else {
         if (!mapRef.current) {
@@ -47,7 +47,7 @@ export default function MapPanel(props) {
             center: position,
             zoom: 19,
             mapTypeId: "satellite",
-            disableDefaultUI: true
+            disableDefaultUI: true,
           });
         } else {
           mapRef.current.setCenter(position);
@@ -58,7 +58,7 @@ export default function MapPanel(props) {
         if (!markerRef.current) {
           markerRef.current = new window.google.maps.Marker({
             position,
-            map: mapRef.current
+            map: mapRef.current,
           });
         } else {
           markerRef.current.setPosition(position);
@@ -88,8 +88,8 @@ export default function MapPanel(props) {
           {!hasCoords
             ? "Select address to view"
             : error
-            ? "Failed to load map"
-            : "Loading map..."}
+              ? "Failed to load map"
+              : "Loading map..."}
         </div>
       )}
     </div>

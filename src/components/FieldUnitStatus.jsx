@@ -14,8 +14,8 @@ export default function FieldUnitStatus() {
           (connecting
             ? "bg-yellow-900/40 text-yellow-300 border-yellow-600 animate-pulse"
             : connected
-            ? "bg-green-900/30 text-green-400 border-green-700"
-            : "bg-red-900/30 text-red-400 border-red-700 animate-pulse")
+              ? "bg-green-900/30 text-green-400 border-green-700"
+              : "bg-red-900/30 text-red-400 border-red-700 animate-pulse")
         }
       >
         <span
@@ -23,8 +23,8 @@ export default function FieldUnitStatus() {
             connecting
               ? "text-yellow-400"
               : connected
-              ? "text-green-500"
-              : "text-red-500"
+                ? "text-green-500"
+                : "text-red-500"
           }
         >
           ●
@@ -33,8 +33,8 @@ export default function FieldUnitStatus() {
           {connecting
             ? "Connecting..."
             : connected
-            ? "Field Unit Online"
-            : "Field Unit Offline"}
+              ? "Field Unit Online"
+              : "Field Unit Offline"}
         </span>
       </div>
       {connected && status && (
