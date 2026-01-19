@@ -34,7 +34,7 @@ export default function NotesPanel(props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-gray-200">
+        <div className="text-sm font-semibold text-ems-gray">
           Call Notes ({safeNotes.length})
         </div>
         <div className="flex items-center gap-2">
@@ -45,16 +45,21 @@ export default function NotesPanel(props) {
             className={
               "min-h-[44px] rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-150 " +
               (disableReadAloud
-                ? "cursor-not-allowed bg-gray-700 text-gray-500"
-                : "bg-blue-600 text-white hover:bg-blue-700")
+                ? "cursor-not-allowed bg-slate-800 text-ems-gray"
+                : "bg-ems-blue-light text-white hover:bg-ems-blue active:bg-ems-blue")
             }
           >
-            {speaking ? "🔊 Speaking..." : "🔊 Read Aloud"}
+            <span className="flex items-center gap-2 justify-center">
+              <span className="material-symbols-outlined text-[18px] leading-none">
+                volume_up
+              </span>
+              <span>{speaking ? "Speaking..." : "Read Aloud"}</span>
+            </span>
           </button>
           <button
             type="button"
             onClick={handleAddNote}
-            className="min-h-[44px] rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white transition-colors duration-150 hover:bg-green-700"
+            className="min-h-[44px] rounded-md bg-ems-red px-3 py-1.5 text-xs font-medium text-white transition-colors duration-150 hover:bg-ems-red/90"
           >
             + Add Note
           </button>
@@ -62,7 +67,7 @@ export default function NotesPanel(props) {
       </div>
 
       {loading && (
-        <div className="rounded-md border border-dashed border-gray-700 bg-gray-900/60 px-3 py-4 text-xs text-gray-500">
+        <div className="rounded-md border border-dashed border-ems-blue-light bg-slate-900 px-3 py-4 text-xs text-ems-gray">
           Loading notes...
         </div>
       )}

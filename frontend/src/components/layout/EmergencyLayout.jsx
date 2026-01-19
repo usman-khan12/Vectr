@@ -164,15 +164,24 @@ export function EmergencyLayout({
             }
             aria-expanded={transcriptionPanelMode !== "minimized"}
             aria-controls="transcription-panel"
-            className="flex items-center gap-2 rounded-full bg-gray-900 text-gray-100 text-xs px-8 py-1 border border-gray-700 shadow-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex items-center gap-2 rounded-full bg-ems-blue text-ems-white text-xs px-6 py-1.5 border border-ems-blue-light shadow-lg focus:outline-none focus:ring-2 focus:ring-ems-red"
           >
-            <span>Live Feed &amp; Notes</span>
-            <span className="text-base">
+            <span className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center rounded-full bg-ems-red text-white w-5 h-5">
+                <span className="material-symbols-outlined text-[16px] leading-none">
+                  graphic_eq
+                </span>
+              </span>
+              <span className="font-semibold tracking-wide">
+                Live Feed &amp; Notes
+              </span>
+            </span>
+            <span className="material-symbols-outlined text-base leading-none">
               {transcriptionPanelMode === "maximized"
-                ? "▼"
+                ? "expand_more"
                 : transcriptionPanelMode === "minimized"
-                  ? "▲"
-                  : "⤢"}
+                  ? "expand_less"
+                  : "open_in_full"}
             </span>
           </button>
         </div>

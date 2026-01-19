@@ -1,23 +1,28 @@
 const TYPE_STYLES = {
   hazard: {
-    icon: "⚠️",
-    className: "bg-red-900/40 border-l-4 border-red-500",
+    icon: "warning",
+    iconClassName: "text-ems-red",
+    className: "bg-ems-red/10 border-l-4 border-ems-red",
   },
   access: {
-    icon: "🚪",
-    className: "bg-blue-900/40 border-l-4 border-blue-500",
+    icon: "door_open",
+    iconClassName: "text-ems-blue-light",
+    className: "bg-ems-blue/10 border-l-4 border-ems-blue-light",
   },
   parking: {
-    icon: "🅿️",
-    className: "bg-green-900/40 border-l-4 border-green-500",
+    icon: "local_parking",
+    iconClassName: "text-ems-blue",
+    className: "bg-ems-blue/10 border-l-4 border-ems-blue",
   },
   animal: {
-    icon: "🐕",
-    className: "bg-yellow-900/40 border-l-4 border-yellow-500",
+    icon: "pets",
+    iconClassName: "text-ems-blue-light",
+    className: "bg-slate-900 border-l-4 border-ems-blue-light",
   },
   general: {
-    icon: "📝",
-    className: "bg-gray-800 border-l-4 border-gray-500",
+    icon: "description",
+    iconClassName: "text-ems-gray",
+    className: "bg-slate-900 border-l-4 border-ems-gray",
   },
 };
 
@@ -28,12 +33,21 @@ export default function NoteCard(props) {
   return (
     <div
       className={
-        "min-w-[200px] rounded-lg p-3 text-sm text-gray-100 flex items-start gap-2 " +
+        "min-w-[200px] rounded-lg p-3 text-sm text-ems-white flex items-start gap-2 " +
         style.className
       }
     >
-      <span className="mt-0.5 text-lg">{style.icon}</span>
-      <p className="leading-snug">{content}</p>
+      <span className="mt-0.5 flex items-center justify-center">
+        <span
+          className={
+            "material-symbols-outlined text-[18px] leading-none " +
+            style.iconClassName
+          }
+        >
+          {style.icon}
+        </span>
+      </span>
+      <p className="leading-snug text-ems-gray">{content}</p>
     </div>
   );
 }

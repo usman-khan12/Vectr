@@ -35,12 +35,10 @@ app = FastAPI()
 @app.on_event("startup")
 async def startup_event():
     print("Startup: Checking API Keys...")
-    print(
-        f"TOKEN_COMPANY_API_KEY: {'Set' if TOKEN_COMPANY_API_KEY else 'Not Set'}")
+    print(f"TOKEN_COMPANY_API_KEY: {'Set' if TOKEN_COMPANY_API_KEY else 'Not Set'}")
     print(f"GOOGLE_API_KEY: {'Set' if GOOGLE_API_KEY else 'Not Set'}")
     print(f"WISPR_API_KEY: {'Set' if WISPR_API_KEY else 'Not Set'}")
-    print(
-        f"GOOGLE_MAPS_API_KEY: {'Set' if GOOGLE_MAPS_API_KEY else 'Not Set'}")
+    print(f"GOOGLE_MAPS_API_KEY: {'Set' if GOOGLE_MAPS_API_KEY else 'Not Set'}")
 
 
 app.add_middleware(
@@ -130,8 +128,7 @@ def compress_text_with_token_company(text: str, aggressiveness: float) -> str:
     }
 
     try:
-        response = requests.post(url, headers=headers,
-                                 json=payload, timeout=30)
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
     except requests.RequestException as exc:
         raise HTTPException(
             status_code=502, detail="Error calling compression service"
@@ -222,8 +219,7 @@ async def create_incident(payload: CreateIncidentRequest):
 
     # 1. Run scene analysis (reusing existing functions)
     try:
-        satellite_bytes = fetch_static_satellite_image(
-            payload.lat, payload.lng)
+        satellite_bytes = fetch_static_satellite_image(payload.lat, payload.lng)
         scene_analysis = analyze_scene_with_gemini(
             payload.address, payload.lat, payload.lng, satellite_bytes
         )
@@ -352,8 +348,7 @@ async def trigger_briefing(payload: TriggerBriefingRequest):
             )
         )
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Failed to send briefing: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to send briefing: {e}")
 
     await lk.aclose()
 
@@ -362,8 +357,7 @@ async def trigger_briefing(payload: TriggerBriefingRequest):
 
 def generate_ems_report_with_gemini(compressed_text: str) -> str:
     if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY is not configured")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured")
 
     # Pass API key explicitly
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -393,24 +387,21 @@ def generate_ems_report_with_gemini(compressed_text: str) -> str:
             contents=prompt,
         )
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Error calling Gemini API") from exc
+        raise HTTPException(status_code=502, detail="Error calling Gemini API") from exc
 
     text = getattr(response, "text", None)
     if callable(text):
         text = response.text()
 
     if not isinstance(text, str) or not text.strip():
-        raise HTTPException(
-            status_code=502, detail="Invalid response from Gemini API")
+        raise HTTPException(status_code=502, detail="Invalid response from Gemini API")
 
     return text
 
 
 def transcribe_with_wispr(audio_base64: str) -> str:
     if not WISPR_API_KEY:
-        raise HTTPException(
-            status_code=500, detail="WISPR_API_KEY is not configured")
+        raise HTTPException(status_code=500, detail="WISPR_API_KEY is not configured")
 
     url = "https://api.wisprflow.ai/api"
     headers = {
@@ -429,21 +420,17 @@ def transcribe_with_wispr(audio_base64: str) -> str:
     }
 
     try:
-        response = requests.post(url, headers=headers,
-                                 json=payload, timeout=60)
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
     except requests.RequestException as exc:
-        raise HTTPException(
-            status_code=502, detail="Error calling Wispr API") from exc
+        raise HTTPException(status_code=502, detail="Error calling Wispr API") from exc
 
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail="Wispr API returned an error")
+        raise HTTPException(status_code=502, detail="Wispr API returned an error")
 
     data = response.json()
     text = data.get("text")
     if not isinstance(text, str) or not text.strip():
-        raise HTTPException(
-            status_code=502, detail="Invalid response from Wispr API")
+        raise HTTPException(status_code=502, detail="Invalid response from Wispr API")
 
     return text
 
@@ -463,8 +450,7 @@ async def transcribe_with_livekit(audio_base64: str) -> str:
     try:
         audio_bytes = base64.b64decode(audio_base64)
     except Exception as exc:
-        raise HTTPException(
-            status_code=400, detail="Invalid audio_base64") from exc
+        raise HTTPException(status_code=400, detail="Invalid audio_base64") from exc
 
     stt = inference.STT(model="assemblyai/universal-streaming", language="en")
     decoder = AudioStreamDecoder(sample_rate=16000, num_channels=1)
@@ -514,8 +500,7 @@ def fetch_static_satellite_image(lat: float, lng: float) -> bytes:
             status_code=502, detail="Error fetching static map image"
         ) from exc
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch static map image")
+        raise HTTPException(status_code=502, detail="Failed to fetch static map image")
     return response.content
 
 
@@ -537,8 +522,7 @@ def fetch_street_view_image(lat: float, lng: float) -> bytes:
             status_code=502, detail="Error fetching street view image"
         ) from exc
     if response.status_code != 200:
-        raise HTTPException(
-            status_code=502, detail="Failed to fetch street view image")
+        raise HTTPException(status_code=502, detail="Failed to fetch street view image")
     return response.content
 
 
@@ -546,8 +530,7 @@ def analyze_scene_with_gemini(
     address: str, lat: float, lng: float, image_bytes: bytes
 ) -> str:
     if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY is not configured")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured")
 
     # Pass API key explicitly
     client = genai.Client(api_key=GEMINI_API_KEY)
@@ -584,14 +567,12 @@ def analyze_scene_with_gemini(
             contents=contents,
         )
     except Exception as exc:
-        raise HTTPException(
-            status_code=502, detail="Error calling Gemini API") from exc
+        raise HTTPException(status_code=502, detail="Error calling Gemini API") from exc
     text = getattr(response, "text", None)
     if callable(text):
         text = response.text()
     if not isinstance(text, str) or not text.strip():
-        raise HTTPException(
-            status_code=502, detail="Invalid response from Gemini API")
+        raise HTTPException(status_code=502, detail="Invalid response from Gemini API")
     return text
 
 
@@ -600,8 +581,7 @@ def generate_positioning_guidance(
 ) -> str:
     """Analyze street view to provide ambulance positioning guidance."""
     if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY is not configured")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY is not configured")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -657,8 +637,7 @@ def generate_positioning_guidance(
     if callable(text):
         text = response.text()
     if not isinstance(text, str) or not text.strip():
-        raise HTTPException(
-            status_code=502, detail="Invalid response from Gemini API")
+        raise HTTPException(status_code=502, detail="Invalid response from Gemini API")
     return text
 
 
@@ -680,8 +659,7 @@ def generate_structured_positioning(
     address: str, lat: float, lng: float, street_view_bytes: bytes
 ) -> StructuredPositioningResponse:
     if not GEMINI_API_KEY:
-        raise HTTPException(
-            status_code=500, detail="GEMINI_API_KEY not configured")
+        raise HTTPException(status_code=500, detail="GEMINI_API_KEY not configured")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -839,8 +817,7 @@ async def scene_analysis(request: SceneAnalysisRequest) -> SceneAnalysisResponse
     analysis = analyze_scene_with_gemini(address, lat, lng, satellite_bytes)
 
     street_view_bytes = fetch_street_view_image(lat, lng)
-    structured = generate_structured_positioning(
-        address, lat, lng, street_view_bytes)
+    structured = generate_structured_positioning(address, lat, lng, street_view_bytes)
 
     return SceneAnalysisResponse(
         analysis=analysis,
